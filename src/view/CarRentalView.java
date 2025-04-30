@@ -58,17 +58,18 @@ public class CarRentalView {
     private static void userMenu(User user) throws Exception {
         while (true) {
             System.out.println("\n--- User Dashboard ---");
-            System.out.println("1. View Available Cars");
+            System.out.println("1. View All Cars");
             System.out.println("2. Book Car");
             System.out.println("3. Logout");
             System.out.print("Choice: ");
             int choice = scanner.nextInt(); scanner.nextLine();
             switch (choice) {
-                case 1 -> controller.viewCars(true);
+                case 1 -> controller.viewCars(false);
                 case 2 -> controller.bookCar(user.getId());
                 case 3 -> { return; }
                 default -> System.out.println("Invalid.");
             }
         }
     }
+
 }
