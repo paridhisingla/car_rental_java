@@ -85,6 +85,7 @@ public class CarRentalController {
         }
     }
 
+
     public void addCar() throws SQLException {
         boolean validId = false;
         while (!validId) {
@@ -97,22 +98,44 @@ public class CarRentalController {
                 System.out.println("Invalid input. Please enter a valid integer for the car ID.");
                 continue;
             }
+
             try (Connection con = DBConnection.getConnection()) {
-                String checkSql = "SELECT * FROM cars WHERE id = ? AND is_deleted = false";
+                String checkSql = "SELECT * FROM cars WHERE id = ?";
                 PreparedStatement checkStmt = con.prepareStatement(checkSql);
                 checkStmt.setInt(1, id);
                 ResultSet rs = checkStmt.executeQuery();
 
                 if (rs.next()) {
-                    System.out.println("Car ID already exists. Please enter a different ID.");
+                    boolean isDeleted = rs.getBoolean("is_deleted");
+                    if (!isDeleted) {
+                        System.out.println("Car ID already exists. Please enter a different ID.");
+                    } else {
+                        // Restore the deleted car
+                        System.out.print("Model: ");
+                        String model = scanner.nextLine();
+                        System.out.print("Price per Day: ");
+                        double price = scanner.nextDouble();
+                        scanner.nextLine(); // consume newline
+
+                        String updateSql = "UPDATE cars SET model = ?, price_per_day = ?, available = true, is_deleted = false WHERE id = ?";
+                        PreparedStatement updateStmt = con.prepareStatement(updateSql);
+                        updateStmt.setString(1, model);
+                        updateStmt.setDouble(2, price);
+                        updateStmt.setInt(3, id);
+                        updateStmt.executeUpdate();
+
+                        System.out.println("Previously deleted car restored with new data.");
+                        validId = true;
+                    }
                 } else {
+                    // Insert a completely new car
                     System.out.print("Model: ");
                     String model = scanner.nextLine();
                     System.out.print("Price per Day: ");
                     double price = scanner.nextDouble();
-                    scanner.nextLine();
+                    scanner.nextLine(); // consume newline
 
-                    String insertSql = "INSERT INTO cars (id, model, price_per_day, available) VALUES (?, ?, ?, true)";
+                    String insertSql = "INSERT INTO cars (id, model, price_per_day, available, is_deleted) VALUES (?, ?, ?, true, false)";
                     PreparedStatement insertStmt = con.prepareStatement(insertSql);
                     insertStmt.setInt(1, id);
                     insertStmt.setString(2, model);
@@ -122,13 +145,17 @@ public class CarRentalController {
                     System.out.println("Car added.");
                     validId = true;
                 }
-            } catch (SQLException e) {
 
+            } catch (SQLException e) {
                 System.out.println("Error: " + e.getMessage());
-                validId = true;
+                validId = true; // exit loop on error
             }
         }
     }
+
+
+
+
 
     public void deleteCar() throws SQLException {
         System.out.println("\n--- Delete Car ---");
@@ -198,6 +225,8 @@ public class CarRentalController {
     }
 
 
+
+
     public void bookCar(int userId) throws SQLException {
         System.out.println("\n--- Book a Car ---");
         System.out.println("Do you want to sort available cars by price?");
@@ -254,11 +283,20 @@ public class CarRentalController {
             return;
         }
 
-
         System.out.print("Enter start date (YYYY-MM-DD): ");
         String startDate = scanner.nextLine();
         System.out.print("Enter end date (YYYY-MM-DD): ");
         String endDate = scanner.nextLine();
+
+        // ✅ Validate date input
+        if (!isValidDate(startDate) || !isValidDate(endDate)) {
+            System.out.println("Invalid date format. Please enter dates in YYYY-MM-DD format.");
+            return;
+        }
+        if (startDate.compareTo(endDate) > 0) {
+            System.out.println("End date must be after start date. Please try again.");
+            return;
+        }
 
         try (Connection con = DBConnection.getConnection()) {
             String insertBookingSQL = "INSERT INTO bookings (user_id, car_id, start_date, end_date) VALUES (?, ?, ?, ?)";
@@ -269,6 +307,7 @@ public class CarRentalController {
                 pstmt.setString(4, endDate);
                 pstmt.executeUpdate();
             }
+
             String updateCarSQL = "UPDATE cars SET available = false WHERE id = ?";
             try (PreparedStatement pstmt = con.prepareStatement(updateCarSQL)) {
                 pstmt.setInt(1, carId);
@@ -281,29 +320,11 @@ public class CarRentalController {
         } catch (SQLException e) {
             System.out.println("Error booking car: " + e.getMessage());
         }
-
-
-
-        do {
-            System.out.print("Enter start date (YYYY-MM-DD): ");
-            startDate = scanner.nextLine();
-            if (!isValidDate(startDate)) {
-                System.out.println("Invalid date format. Please enter the date in YYYY-MM-DD format.");
-            }
-        } while (!isValidDate(startDate));
-
-        do {
-            System.out.print("Enter end date (YYYY-MM-DD): ");
-            endDate = scanner.nextLine();
-            if (!isValidDate(endDate)) {
-                System.out.println("Invalid date format. Please enter the date in YYYY-MM-DD format.");
-            }
-        } while (!isValidDate(endDate));
-        if (startDate.compareTo(endDate) > 0) {
-            System.out.println("End date must be after start date. Please try again.");
-            return;
-        }
     }
+
+
+
+
     public List<Car> mergeSort(List<Car> cars) {
         if (cars.size() <= 1) {
             return cars;
