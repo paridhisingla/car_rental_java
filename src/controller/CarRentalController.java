@@ -299,6 +299,32 @@ public class CarRentalController {
         }
 
         try (Connection con = DBConnection.getConnection()) {
+            // Fetch car price
+            String fetchCarPriceSQL = "SELECT price_per_day FROM cars WHERE id = ?";
+            double pricePerDay = 0;
+            try (PreparedStatement pstmt = con.prepareStatement(fetchCarPriceSQL)) {
+                pstmt.setInt(1, carId);
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    pricePerDay = rs.getDouble("price_per_day");
+                }
+            }
+
+            // Calculate the number of days between the start and end date
+            long startTime = java.sql.Date.valueOf(startDate).getTime();
+            long endTime = java.sql.Date.valueOf(endDate).getTime();
+            long durationInMillis = endTime - startTime;
+            long durationInDays = durationInMillis / (1000 * 60 * 60 * 24);
+
+            if (durationInDays <= 0) {
+                System.out.println("The booking duration must be at least one day.");
+                return;
+            }
+
+            // Calculate total price
+            double totalPrice = pricePerDay * durationInDays;
+
+            // Insert booking details
             String insertBookingSQL = "INSERT INTO bookings (user_id, car_id, start_date, end_date) VALUES (?, ?, ?, ?)";
             try (PreparedStatement pstmt = con.prepareStatement(insertBookingSQL)) {
                 pstmt.setInt(1, userId);
@@ -308,6 +334,7 @@ public class CarRentalController {
                 pstmt.executeUpdate();
             }
 
+            // Update car availability
             String updateCarSQL = "UPDATE cars SET available = false WHERE id = ?";
             try (PreparedStatement pstmt = con.prepareStatement(updateCarSQL)) {
                 pstmt.setInt(1, carId);
@@ -316,11 +343,39 @@ public class CarRentalController {
             }
 
             System.out.println("Car booked successfully!");
+            System.out.println("Total price for booking (" + durationInDays + " day(s)): ₹" + totalPrice);
 
         } catch (SQLException e) {
             System.out.println("Error booking car: " + e.getMessage());
         }
     }
+
+
+
+
+    public void updateCarAvailabilityBasedOnDate() throws SQLException {
+        String sql = """
+        UPDATE cars
+        SET available = true
+        WHERE id IN (
+            SELECT car_id FROM bookings
+            WHERE end_date < CURRENT_DATE
+        )
+    """;
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            int rows = pstmt.executeUpdate();
+            System.out.println("Updated availability for " + rows + " cars.");
+        } catch (SQLException e) {
+            System.out.println("Error updating car availability: " + e.getMessage());
+        }
+    }
+
+
+
+
+
 
 
 
