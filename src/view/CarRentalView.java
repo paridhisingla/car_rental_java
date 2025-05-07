@@ -1,6 +1,7 @@
 package view;
 
 import controller.CarRentalController;
+import controller.DBConnection;
 import model.User;
 
 import java.util.Scanner;

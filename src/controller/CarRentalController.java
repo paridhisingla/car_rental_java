@@ -1,7 +1,7 @@
 package controller;
 
 import model.*;
-import util.DBConnection;
+//import DBConnection;
 
 import java.sql.*;
 import java.util.*;
@@ -288,7 +288,7 @@ public class CarRentalController {
         System.out.print("Enter end date (YYYY-MM-DD): ");
         String endDate = scanner.nextLine();
 
-        // ✅ Validate date input
+        // Validate date input
         if (!isValidDate(startDate) || !isValidDate(endDate)) {
             System.out.println("Invalid date format. Please enter dates in YYYY-MM-DD format.");
             return;
@@ -352,34 +352,7 @@ public class CarRentalController {
 
 
 
-
-    public void updateCarAvailabilityBasedOnDate() throws SQLException {
-        String sql = """
-        UPDATE cars
-        SET available = true
-        WHERE id IN (
-            SELECT car_id FROM bookings
-            WHERE end_date < CURRENT_DATE
-        )
-    """;
-
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
-            int rows = pstmt.executeUpdate();
-            System.out.println("Updated availability for " + rows + " cars.");
-        } catch (SQLException e) {
-            System.out.println("Error updating car availability: " + e.getMessage());
-        }
-    }
-
-
-
-
-
-
-
-
-
+// -------------------------------------sorting---------------------------------
     public List<Car> mergeSort(List<Car> cars) {
         if (cars.size() <= 1) {
             return cars;
