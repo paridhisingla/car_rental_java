@@ -1,5 +1,6 @@
 package model;
 
+//----------------------Car Schema--------------------
 public class Car {
     private int id;
     private String model;

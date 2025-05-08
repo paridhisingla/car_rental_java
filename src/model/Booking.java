@@ -2,6 +2,7 @@ package model;
 
 import java.sql.Date;
 
+//---------------------Booking Schema-----------------
 public class Booking {
     private int userId;
     private int carId;

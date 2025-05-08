@@ -1,5 +1,6 @@
 package model;
 
+//-----------User Schema-----------------
 public class User {
     private int id;
     private String email;

@@ -1,5 +1,6 @@
 package controller;
 
+//----------------Connection to SQL------------------------------
 import java.sql.*;
 
 public class DBConnection {
