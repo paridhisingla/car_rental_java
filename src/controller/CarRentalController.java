@@ -43,20 +43,41 @@ public class CarRentalController {
 
     public void register() throws SQLException {
         System.out.println("\n--- Register ---");
+
+        // Step 1: Ask for role using 1 or 2
+        String role = "";
+        while (true) {
+            System.out.println("1. Admin");
+            System.out.println("2. User");
+            System.out.print("Enter your choice: ");
+            String choice = scanner.nextLine().trim();
+
+            if (choice.equals("1")) {
+                role = "admin";
+                break;
+            } else if (choice.equals("2")) {
+                role = "user";
+                break;
+            } else {
+                System.out.println("Invalid choice. Please enter 1 or 2.");
+            }
+        }
+
+        // Step 2: Ask for email
         System.out.print("Email: ");
         String email = scanner.nextLine();
 
-        // Email must contain '@'
         if (!email.contains("@")) {
             System.out.println("Invalid email. Email must contain '@'. Returning to main menu...");
-            return; // return to main menu
+            return;
         }
 
+        // Step 3: Ask for password
         System.out.print("Password: ");
         String password = scanner.nextLine();
 
+        // Step 4: Save to database
         try (Connection con = DBConnection.getConnection()) {
-            // Check if user already exists
             String checkSql = "SELECT * FROM users WHERE email = ?";
             PreparedStatement checkStmt = con.prepareStatement(checkSql);
             checkStmt.setString(1, email);
@@ -66,16 +87,20 @@ public class CarRentalController {
                 return;
             }
 
-            // Register new user
-            String insertSql = "INSERT INTO users (email, password, role) VALUES (?, ?, 'user')";
+            String insertSql = "INSERT INTO users (email, password, role) VALUES (?, ?, ?)";
             PreparedStatement insertStmt = con.prepareStatement(insertSql);
             insertStmt.setString(1, email);
             insertStmt.setString(2, password);
+            insertStmt.setString(3, role);
             insertStmt.executeUpdate();
 
-            System.out.println("Registration successful.");
+            System.out.println("Registration successful as " + role + ".");
         }
     }
+
+
+
+
 
 
 

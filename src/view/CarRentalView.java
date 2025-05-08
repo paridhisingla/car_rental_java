@@ -14,7 +14,7 @@ public class CarRentalView {
         while (true) {
             System.out.println("\n==== Luxury Car Rental ====");
             System.out.println("1. Login");
-            System.out.println("2. Register (User)");
+            System.out.println("2. Register");
 
             System.out.println("3. Exit");
             System.out.print("Choice: ");
