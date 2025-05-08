@@ -10,14 +10,23 @@ public class CarRentalController {
 
     public User login() throws SQLException {
         System.out.println("\n--- Login ---");
+
         System.out.print("Email: ");
         String email = scanner.nextLine();
+
+        // Check if email contains '@'
+        if (!email.contains("@")) {
+            System.out.println("Invalid email. Email must contain '@'. Returning to main menu...");
+            return null; // Early return to go back to main menu
+        }
+
         System.out.print("Password: ");
         String password = scanner.nextLine();
 
         String sql = "SELECT * FROM users WHERE email = ? AND password = ?";
         try (Connection con = DBConnection.getConnection();
              PreparedStatement stmt = con.prepareStatement(sql)) {
+
             stmt.setString(1, email);
             stmt.setString(2, password);
             ResultSet rs = stmt.executeQuery();
@@ -26,18 +35,28 @@ public class CarRentalController {
                 return new User(rs.getInt("id"), email, password, rs.getString("role"));
             }
         }
+
         System.out.println("Invalid credentials.");
         return null;
     }
+
 
     public void register() throws SQLException {
         System.out.println("\n--- Register ---");
         System.out.print("Email: ");
         String email = scanner.nextLine();
+
+        // Email must contain '@'
+        if (!email.contains("@")) {
+            System.out.println("Invalid email. Email must contain '@'. Returning to main menu...");
+            return; // return to main menu
+        }
+
         System.out.print("Password: ");
         String password = scanner.nextLine();
 
         try (Connection con = DBConnection.getConnection()) {
+            // Check if user already exists
             String checkSql = "SELECT * FROM users WHERE email = ?";
             PreparedStatement checkStmt = con.prepareStatement(checkSql);
             checkStmt.setString(1, email);
@@ -47,14 +66,17 @@ public class CarRentalController {
                 return;
             }
 
+            // Register new user
             String insertSql = "INSERT INTO users (email, password, role) VALUES (?, ?, 'user')";
             PreparedStatement insertStmt = con.prepareStatement(insertSql);
             insertStmt.setString(1, email);
             insertStmt.setString(2, password);
             insertStmt.executeUpdate();
+
             System.out.println("Registration successful.");
         }
     }
+
 
 
     public void viewCars(boolean onlyAvailable) throws SQLException {
@@ -352,7 +374,174 @@ public class CarRentalController {
 
 
 
-// -------------------------------------sorting---------------------------------
+
+
+
+    public void updateCarInfo() {
+        Scanner scanner = new Scanner(System.in);
+        try (Connection con = DBConnection.getConnection()) {
+            String fetchCars = "SELECT * FROM cars WHERE is_deleted = false";
+            try (Statement stmt = con.createStatement();
+                 ResultSet rs = stmt.executeQuery(fetchCars)) {
+
+                boolean hasCars = false;
+                while (rs.next()) {
+                    hasCars = true;
+                    System.out.printf("Car ID: %d | Model: %s | Price/Day: ₹%.2f | Available: %s%n",
+                            rs.getInt("id"),
+                            rs.getString("model"),
+                            rs.getDouble("price_per_day"),
+                            rs.getBoolean("available") ? "Yes" : "No");
+                }
+
+                if (!hasCars) {
+                    System.out.println("No cars available to update.");
+                    return;
+                }
+            }
+
+            System.out.print("Enter Car ID to update: ");
+            int carId = scanner.nextInt(); scanner.nextLine();
+
+            String checkSql = "SELECT * FROM cars WHERE id = ? AND is_deleted = false";
+            try (PreparedStatement checkStmt = con.prepareStatement(checkSql)) {
+                checkStmt.setInt(1, carId);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (!rs.next()) {
+                    System.out.println("Car not found.");
+                    return;
+                }
+
+                String currentModel = rs.getString("model");
+                double currentPrice = rs.getDouble("price_per_day");
+
+                System.out.println("Current Model: " + currentModel);
+                System.out.println("Current Price/Day: ₹" + currentPrice);
+
+                System.out.print("New Model (press Enter to keep same): ");
+                String newModel = scanner.nextLine();
+                if (newModel.isBlank()) newModel = currentModel;
+
+                System.out.print("New Price per Day (-1 to keep same): ");
+                String priceInput = scanner.nextLine();
+                double newPrice = priceInput.isBlank() ? currentPrice : Double.parseDouble(priceInput);
+                if (newPrice < 0) newPrice = currentPrice;
+
+                String updateSql = "UPDATE cars SET model = ?, price_per_day = ? WHERE id = ?";
+                try (PreparedStatement updateStmt = con.prepareStatement(updateSql)) {
+                    updateStmt.setString(1, newModel);
+                    updateStmt.setDouble(2, newPrice);
+                    updateStmt.setInt(3, carId);
+                    updateStmt.executeUpdate();
+                    System.out.println("✅ Car info updated successfully.");
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Error: " + e.getMessage());
+        }
+    }
+
+
+
+    public void updateBookingDate(int userId) throws SQLException {
+        System.out.println("\n--- Update Booking Dates ---");
+
+        // Step 1: Ask the user for the booking ID
+        System.out.print("Enter your Booking ID: ");
+        int bookingId = scanner.nextInt();
+        scanner.nextLine(); // consume newline
+
+        // Step 2: Verify booking exists
+        String checkBookingSql = "SELECT * FROM bookings WHERE id = ? AND user_id = ?";
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement checkStmt = con.prepareStatement(checkBookingSql)) {
+
+            checkStmt.setInt(1, bookingId);
+            checkStmt.setInt(2, userId);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (!rs.next()) {
+                System.out.println("Booking ID not found or does not belong to you.");
+                return;
+            }
+
+            // Step 3: Get current booking dates
+            String currentStartDate = rs.getString("start_date");
+            String currentEndDate = rs.getString("end_date");
+            int carId = rs.getInt("car_id");
+
+            System.out.println("Current Booking Dates: Start Date: " + currentStartDate + ", End Date: " + currentEndDate);
+
+            // Step 4: Ask for new dates
+            System.out.print("Enter new start date (YYYY-MM-DD): ");
+            String newStartDate = scanner.nextLine();
+            System.out.print("Enter new end date (YYYY-MM-DD): ");
+            String newEndDate = scanner.nextLine();
+
+            // Step 5: Validate new dates
+            if (!isValidDate(newStartDate) || !isValidDate(newEndDate)) {
+                System.out.println("Invalid date format. Please enter dates in YYYY-MM-DD format.");
+                return;
+            }
+            if (newStartDate.compareTo(newEndDate) > 0) {
+                System.out.println("End date must be after start date.");
+                return;
+            }
+
+            // Step 6: Calculate duration
+            long startTime = java.sql.Date.valueOf(newStartDate).getTime();
+            long endTime = java.sql.Date.valueOf(newEndDate).getTime();
+            long durationInDays = (endTime - startTime) / (1000 * 60 * 60 * 24);
+
+            if (durationInDays <= 0) {
+                System.out.println("The booking duration must be at least one day.");
+                return;
+            }
+
+            // Step 7: Get car's price_per_day
+            double pricePerDay = 0;
+            String carSql = "SELECT price_per_day FROM cars WHERE id = ?";
+            try (PreparedStatement carStmt = con.prepareStatement(carSql)) {
+                carStmt.setInt(1, carId);
+                ResultSet carRs = carStmt.executeQuery();
+                if (carRs.next()) {
+                    pricePerDay = carRs.getDouble("price_per_day");
+                } else {
+                    System.out.println("Car not found for this booking.");
+                    return;
+                }
+            }
+
+            // Step 8: Calculate new total price
+            double newTotalPrice = durationInDays * pricePerDay;
+            System.out.printf("New total price for this booking: ₹%.2f\n", newTotalPrice);
+
+            // Step 9: Update booking
+            String updateSql = "UPDATE bookings SET start_date = ?, end_date = ?, price = ? WHERE id = ? AND user_id = ?";
+            try (PreparedStatement updateStmt = con.prepareStatement(updateSql)) {
+                updateStmt.setString(1, newStartDate);
+                updateStmt.setString(2, newEndDate);
+                updateStmt.setDouble(3, newTotalPrice);
+                updateStmt.setInt(4, bookingId);
+                updateStmt.setInt(5, userId);
+
+                int rows = updateStmt.executeUpdate();
+                if (rows > 0) {
+                    System.out.println("Booking updated successfully!");
+                } else {
+                    System.out.println("Error updating booking.");
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error updating booking: " + e.getMessage());
+        }
+    }
+
+
+
+    // -------------------------------------sorting---------------------------------
     public List<Car> mergeSort(List<Car> cars) {
         if (cars.size() <= 1) {
             return cars;

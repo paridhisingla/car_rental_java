@@ -15,6 +15,7 @@ public class CarRentalView {
             System.out.println("\n==== Luxury Car Rental ====");
             System.out.println("1. Login");
             System.out.println("2. Register (User)");
+
             System.out.println("3. Exit");
             System.out.print("Choice: ");
             int choice = scanner.nextInt(); scanner.nextLine();
@@ -43,14 +44,16 @@ public class CarRentalView {
             System.out.println("1. View Cars");
             System.out.println("2. Add Car");
             System.out.println("3. Delete Car");
-            System.out.println("4. Logout");
+            System.out.println("4. Update Car Info");
+            System.out.println("5. Logout");
             System.out.print("Choice: ");
             int choice = scanner.nextInt(); scanner.nextLine();
             switch (choice) {
                 case 1 -> controller.viewCars(false);
                 case 2 -> controller.addCar();
                 case 3 -> controller.deleteCar();
-                case 4 -> { return; }
+                case 4 -> controller.updateCarInfo();
+                case 5 -> { return; }
                 default -> System.out.println("Invalid.");
             }
         }
@@ -61,13 +64,15 @@ public class CarRentalView {
             System.out.println("\n--- User Dashboard ---");
             System.out.println("1. View All Cars");
             System.out.println("2. Book Car");
-            System.out.println("3. Logout");
+            System.out.println("3. Update Booking Date");
+            System.out.println("4. Logout");
             System.out.print("Choice: ");
             int choice = scanner.nextInt(); scanner.nextLine();
             switch (choice) {
                 case 1 -> controller.viewCars(false);
                 case 2 -> controller.bookCar(user.getId());
-                case 3 -> { return; }
+                case 3 -> controller.updateBookingDate(user.getId());
+                case 4 -> { return; }
                 default -> System.out.println("Invalid.");
             }
         }
