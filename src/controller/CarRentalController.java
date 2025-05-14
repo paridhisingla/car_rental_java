@@ -2,12 +2,12 @@ package controller;
 
 import model.*;
 //import DBConnection;
+
 import java.sql.*;
 import java.util.*;
 public class CarRentalController {
     private Scanner scanner = new Scanner(System.in);
 
-    //---------------------------------Login------------------------------------
     public User login() throws SQLException {
         System.out.println("\n--- Login ---");
 
@@ -17,7 +17,7 @@ public class CarRentalController {
         // Check if email contains '@'
         if (!email.contains("@")) {
             System.out.println("Invalid email. Email must contain '@'. Returning to main menu...");
-            return null;
+            return null; // Early return to go back to main menu
         }
 
         System.out.print("Password: ");
@@ -35,12 +35,16 @@ public class CarRentalController {
                 return new User(rs.getInt("id"), email, password, rs.getString("role"));
             }
         }
+
         System.out.println("Invalid credentials.");
         return null;
     }
-    //------------------------------For Registering--------------------------------
+
+
     public void register() throws SQLException {
         System.out.println("\n--- Register ---");
+
+        // Step 1: Ask for role using 1 or 2
         String role = "";
         while (true) {
             System.out.println("1. Admin");
@@ -58,7 +62,8 @@ public class CarRentalController {
                 System.out.println("Invalid choice. Please enter 1 or 2.");
             }
         }
-        //Ask for email
+
+        // Step 2: Ask for email
         System.out.print("Email: ");
         String email = scanner.nextLine();
 
@@ -66,10 +71,12 @@ public class CarRentalController {
             System.out.println("Invalid email. Email must contain '@'. Returning to main menu...");
             return;
         }
-        //Ask for password
+
+        // Step 3: Ask for password
         System.out.print("Password: ");
         String password = scanner.nextLine();
-        //Save to database
+
+        // Step 4: Save to database
         try (Connection con = DBConnection.getConnection()) {
             String checkSql = "SELECT * FROM users WHERE email = ?";
             PreparedStatement checkStmt = con.prepareStatement(checkSql);
@@ -79,6 +86,7 @@ public class CarRentalController {
                 System.out.println("User already exists.");
                 return;
             }
+
             String insertSql = "INSERT INTO users (email, password, role) VALUES (?, ?, ?)";
             PreparedStatement insertStmt = con.prepareStatement(insertSql);
             insertStmt.setString(1, email);
@@ -90,50 +98,41 @@ public class CarRentalController {
         }
     }
 
-    //------------------View available cars----------------------------
+
+
+
+
+
+
     public void viewCars(boolean onlyAvailable) throws SQLException {
         String sql = onlyAvailable
                 ? "SELECT * FROM cars WHERE available = true AND is_deleted = false"
-                : "SELECT * FROM cars WHERE is_deleted = false"; // Show all cars
-
-        // Create ArrayList to store cars
-        ArrayList<Car> carList = new ArrayList<>();
+                : "SELECT * FROM cars WHERE is_deleted = false"; // Show all cars (available + booked)
 
         try (Connection con = DBConnection.getConnection();
              Statement stmt = con.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
+
+            boolean hasCars = false;
             while (rs.next()) {
-                carList.add(new Car(
+                String availabilityStatus = rs.getBoolean("available") ? "Available" : "Unavailable";
+
+                System.out.printf("Car ID: %d | Model: %s | ₹%.2f/day | %s%n",
                         rs.getInt("id"),
                         rs.getString("model"),
                         rs.getDouble("price_per_day"),
-                        rs.getBoolean("available")
-                ));
-            }
-            if (carList.isEmpty()) {
-                System.out.println("No cars available to show.");
-                return;
-            }
-            for (Car car : carList) {
-                String availabilityStatus = car.isAvailable() ? "Available" : "Unavailable";
-                System.out.printf("Car ID: %d | Model: %s | ₹%.2f/day | %s%n",
-                        car.getId(),
-                        car.getModel(),
-                        car.getPrice(),
                         availabilityStatus);
-            }
-            System.out.println("\nTotal cars found: " + carList.size());
 
-            if (!carList.isEmpty()) {
-                double averagePrice = carList.stream()
-                        .mapToDouble(Car::getPrice)
-                        .average()
-                        .orElse(0.0);
-                System.out.printf("Average price: ₹%.2f/day%n", averagePrice);
+                hasCars = true;
+            }
+
+            if (!hasCars) {
+                System.out.println("No cars available to show.");
             }
         }
     }
-//---------------------------Adding of car--------------------------------
+
+
     public void addCar() throws SQLException {
         boolean validId = false;
         while (!validId) {
@@ -175,8 +174,7 @@ public class CarRentalController {
                         System.out.println("Previously deleted car restored with new data.");
                         validId = true;
                     }
-                }
-                else {
+                } else {
                     // Insert a completely new car
                     System.out.print("Model: ");
                     String model = scanner.nextLine();
@@ -197,12 +195,15 @@ public class CarRentalController {
 
             } catch (SQLException e) {
                 System.out.println("Error: " + e.getMessage());
-                validId = true;
+                validId = true; // exit loop on error
             }
         }
     }
 
-    //------------------------------Delete Car---------------------------
+
+
+
+
     public void deleteCar() throws SQLException {
         System.out.println("\n--- Delete Car ---");
         try (Connection con = DBConnection.getConnection();
@@ -264,12 +265,15 @@ public class CarRentalController {
         }
     }
 
+
     private boolean isValidDate(String date) {
         String regex = "\\d{4}-\\d{2}-\\d{2}";
         return date.matches(regex);
     }
 
-    //-----------------------Book Car---------------------------------
+
+
+
     public void bookCar(int userId) throws SQLException {
         System.out.println("\n--- Book a Car ---");
         System.out.println("Do you want to sort available cars by price?");
@@ -289,44 +293,38 @@ public class CarRentalController {
                 scanner.nextLine();
             }
         }
-        List<Car> availableCars = new ArrayList<>();
-        String sql = "SELECT * FROM cars WHERE available = true AND is_deleted = false";
+
+        String sql = sortChoice == 1
+                ? "SELECT * FROM cars WHERE available = true AND is_deleted = false ORDER BY price_per_day ASC"
+                : "SELECT * FROM cars WHERE available = true AND is_deleted = false";
 
         try (Connection con = DBConnection.getConnection();
              Statement stmt = con.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             boolean hasCars = false;
+            System.out.println("\n--- Available Cars ---");
             while (rs.next()) {
                 hasCars = true;
-                Car car = new Car(
+                System.out.printf("Car ID: %d | Model: %s | ₹%.2f/day | Available%n",
                         rs.getInt("id"),
                         rs.getString("model"),
-                        rs.getDouble("price_per_day"),
-                        rs.getBoolean("available")
-                );
-                availableCars.add(car);
+                        rs.getDouble("price_per_day"));
             }
+
             if (!hasCars) {
                 System.out.println("No available cars to book.");
                 return;
             }
-            // Apply merge sort
-            if (sortChoice == 1) {
-                availableCars = mergeSort(availableCars);
-            }
-            System.out.println("\n--- Available Cars ---");
-            for (Car car : availableCars) {
-                System.out.printf("Car ID: %d | Model: %s | ₹%.2f/day | Available: %b%n",
-                        car.getId(), car.getModel(), car.getPrice(), car.isAvailable());
-            }
+
         } catch (SQLException e) {
             System.out.println("Error fetching available cars: " + e.getMessage());
             return;
         }
+
         System.out.print("\nEnter Car ID to book (or 0 to cancel): ");
         int carId = scanner.nextInt();
-        scanner.nextLine();
+        scanner.nextLine(); // consume newline
         if (carId == 0) {
             System.out.println("Booking cancelled.");
             return;
@@ -359,7 +357,7 @@ public class CarRentalController {
                 }
             }
 
-            // Calculate the number of days
+            // Calculate the number of days between the start and end date
             long startTime = java.sql.Date.valueOf(startDate).getTime();
             long endTime = java.sql.Date.valueOf(endDate).getTime();
             long durationInMillis = endTime - startTime;
@@ -372,6 +370,7 @@ public class CarRentalController {
 
             // Calculate total price
             double totalPrice = pricePerDay * durationInDays;
+
             // Insert booking details
             String insertBookingSQL = "INSERT INTO bookings (user_id, car_id, start_date, end_date) VALUES (?, ?, ?, ?)";
             try (PreparedStatement pstmt = con.prepareStatement(insertBookingSQL)) {
@@ -398,7 +397,11 @@ public class CarRentalController {
         }
     }
 
-    //Update Car Information from Admin side
+
+
+
+
+
     public void updateCarInfo() {
         Scanner scanner = new Scanner(System.in);
         try (Connection con = DBConnection.getConnection()) {
@@ -423,8 +426,7 @@ public class CarRentalController {
             }
 
             System.out.print("Enter Car ID to update: ");
-            int carId = scanner.nextInt();
-            scanner.nextLine();
+            int carId = scanner.nextInt(); scanner.nextLine();
 
             String checkSql = "SELECT * FROM cars WHERE id = ? AND is_deleted = false";
             try (PreparedStatement checkStmt = con.prepareStatement(checkSql)) {
@@ -457,23 +459,25 @@ public class CarRentalController {
                     updateStmt.setDouble(2, newPrice);
                     updateStmt.setInt(3, carId);
                     updateStmt.executeUpdate();
-                    System.out.println("Car info updated successfully.");
+                    System.out.println("✅ Car info updated successfully.");
                 }
             }
         } catch (SQLException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("❌ Error: " + e.getMessage());
         }
     }
 
-    //Update car information from User side
+
+
     public void updateBookingDate(int userId) throws SQLException {
         System.out.println("\n--- Update Booking Dates ---");
 
+        // Step 1: Ask the user for the booking ID
         System.out.print("Enter your Booking ID: ");
         int bookingId = scanner.nextInt();
         scanner.nextLine(); // consume newline
 
-        // Verify booking exists
+        // Step 2: Verify booking exists
         String checkBookingSql = "SELECT * FROM bookings WHERE id = ? AND user_id = ?";
         try (Connection con = DBConnection.getConnection();
              PreparedStatement checkStmt = con.prepareStatement(checkBookingSql)) {
@@ -487,18 +491,20 @@ public class CarRentalController {
                 return;
             }
 
-            //Get current booking dates
+            // Step 3: Get current booking dates
             String currentStartDate = rs.getString("start_date");
             String currentEndDate = rs.getString("end_date");
             int carId = rs.getInt("car_id");
 
             System.out.println("Current Booking Dates: Start Date: " + currentStartDate + ", End Date: " + currentEndDate);
 
-            //New dates
+            // Step 4: Ask for new dates
             System.out.print("Enter new start date (YYYY-MM-DD): ");
             String newStartDate = scanner.nextLine();
             System.out.print("Enter new end date (YYYY-MM-DD): ");
             String newEndDate = scanner.nextLine();
+
+            // Step 5: Validate new dates
             if (!isValidDate(newStartDate) || !isValidDate(newEndDate)) {
                 System.out.println("Invalid date format. Please enter dates in YYYY-MM-DD format.");
                 return;
@@ -508,7 +514,7 @@ public class CarRentalController {
                 return;
             }
 
-            //Calculate duration
+            // Step 6: Calculate duration
             long startTime = java.sql.Date.valueOf(newStartDate).getTime();
             long endTime = java.sql.Date.valueOf(newEndDate).getTime();
             long durationInDays = (endTime - startTime) / (1000 * 60 * 60 * 24);
@@ -518,6 +524,7 @@ public class CarRentalController {
                 return;
             }
 
+            // Step 7: Get car's price_per_day
             double pricePerDay = 0;
             String carSql = "SELECT price_per_day FROM cars WHERE id = ?";
             try (PreparedStatement carStmt = con.prepareStatement(carSql)) {
@@ -531,11 +538,11 @@ public class CarRentalController {
                 }
             }
 
-            //Calculate new total price
+            // Step 8: Calculate new total price
             double newTotalPrice = durationInDays * pricePerDay;
             System.out.printf("New total price for this booking: ₹%.2f\n", newTotalPrice);
 
-            //Update booking
+            // Step 9: Update booking
             String updateSql = "UPDATE bookings SET start_date = ?, end_date = ?, price = ? WHERE id = ? AND user_id = ?";
             try (PreparedStatement updateStmt = con.prepareStatement(updateSql)) {
                 updateStmt.setString(1, newStartDate);
@@ -556,130 +563,55 @@ public class CarRentalController {
             System.out.println("Error updating booking: " + e.getMessage());
         }
     }
-    //------------------------------Binary Search ------------------------------
-    public void searchCarByModelBinary() {
-        try {
-            List<Car> sortedCars = getAllCarsSortedByModel();
 
-            if (sortedCars.isEmpty()) {
-                System.out.println("No cars available in the system.");
-                return;
-            }
-            System.out.print("\nEnter car model to search: ");
-            String targetModel = scanner.nextLine().trim();
-            List<Car> foundCars = findAllAvailableCarsByModel(sortedCars, targetModel);
 
-            if (!foundCars.isEmpty()) {
-                System.out.println("\nFound " + foundCars.size() + " available car(s) with model '" + targetModel + "':");
-                for (Car car : foundCars) {
-                    System.out.println("\nCar details:");
-                    System.out.println("ID: " + car.getId());
-                    System.out.println("Model: " + car.getModel());
-                    System.out.println("Price: " + car.getPrice());
-                }
-            } else {
-                System.out.println("No available cars found with model '" + targetModel + "'");
-            }
-        } catch (SQLException e) {
-            System.out.println("Database error: " + e.getMessage());
-        }
-    }
-    // Modified to find only available cars
-    private List<Car> findAllAvailableCarsByModel(List<Car> cars, String targetModel) {
-        List<Car> foundCars = new ArrayList<>();
-        int index = binarySearchFirstOccurrence(cars, targetModel);
 
-        if (index >= 0) {
-            int left = index;
-            while (left >= 0 && cars.get(left).getModel().equalsIgnoreCase(targetModel)) {
-                if (cars.get(left).isAvailable()) {
-                    foundCars.add(cars.get(left));
-                }
-                left--;
-            }
-            int right = index + 1;
-            while (right < cars.size() && cars.get(right).getModel().equalsIgnoreCase(targetModel)) {
-                if (cars.get(right).isAvailable()) {
-                    foundCars.add(cars.get(right));
-                }
-                right++;
-            }
-        }
-        return foundCars;
-    }
-    // For finding first occurrence
-    private int binarySearchFirstOccurrence(List<Car> cars, String targetModel) {
-        int left = 0;
-        int right = cars.size() - 1;
-        int result = -1;
-
-        while (left <= right) {
-            int mid = left + (right - left) / 2;
-            String currentModel = cars.get(mid).getModel();
-            int comparison = currentModel.compareToIgnoreCase(targetModel);
-
-            if (comparison == 0) {
-                result = mid;
-                right = mid - 1;
-            } else if (comparison < 0) {
-                left = mid + 1;
-            } else {
-                right = mid - 1;
-            }
-        }
-        return result;
-    }
-    private List<Car> getAllCarsSortedByModel() throws SQLException {
-        List<Car> cars = new ArrayList<>();
-        try (Connection con = DBConnection.getConnection()) {
-            String sql = "SELECT id, model, price_per_day as price, available FROM cars WHERE is_deleted = false ORDER BY model";
-            PreparedStatement stmt = con.prepareStatement(sql);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Car car = new Car(
-                        rs.getInt("id"),
-                        rs.getString("model"),
-                        rs.getDouble("price"),
-                        rs.getBoolean("available")
-                );
-                cars.add(car);
-            }
-        }
-        return cars;
-    }
-    // ------------------------------Sorting---------------------------------
+    // -------------------------------------sorting---------------------------------
     public List<Car> mergeSort(List<Car> cars) {
         if (cars.size() <= 1) {
             return cars;
         }
-        int mid = cars.size() / 2;
-        List<Car> left = cars.subList(0, mid);
-        List<Car> right = cars.subList(mid, cars.size());
 
-        return merge(mergeSort(left), mergeSort(right));
+        List<Car> left = new ArrayList<>();
+        List<Car> right = new ArrayList<>();
+        int middle = cars.size() / 2;
+
+        // Split the list into two halves
+        for (int i = 0; i < middle; i++) {
+            left.add(cars.get(i));
+        }
+        for (int i = middle; i < cars.size(); i++) {
+            right.add(cars.get(i));
+        }
+        left = mergeSort(left);
+        right = mergeSort(right);
+        return merge(left, right);
     }
-    // Merge method for merge sort
+
     public List<Car> merge(List<Car> left, List<Car> right) {
-        List<Car> merged = new ArrayList<>();
+        List<Car> result = new ArrayList<>();
         int i = 0, j = 0;
         while (i < left.size() && j < right.size()) {
-            if (left.get(i).getPrice() <= right.get(j).getPrice()) {
-                merged.add(left.get(i));
+            if (left.get(i).getPrice() < right.get(j).getPrice()) {
+                result.add(left.get(i));
                 i++;
             } else {
-                merged.add(right.get(j));
+                result.add(right.get(j));
                 j++;
             }
         }
         while (i < left.size()) {
-            merged.add(left.get(i));
+            result.add(left.get(i));
             i++;
         }
         while (j < right.size()) {
-            merged.add(right.get(j));
+            result.add(right.get(j));
             j++;
         }
 
-        return merged;
+        return result;
     }
+
+
+
 }
